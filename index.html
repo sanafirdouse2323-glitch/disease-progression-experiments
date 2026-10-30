@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Multimodal disease progression: five-part demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:wght@500;600&family=Public+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef2f5;--fg:#14212b;--mu:#7d8f99;--card:#fff;--bd:#d3dde3;--a:#2f6f9f;--b:#c0741a;--c:#0f7c8a;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#10181d;--fg:#e6edf0;--mu:#8fa1ab;--card:#172128;--bd:#263640;--a:#6aa7d1;--b:#e5a04d;--c:#4cc3cf;color-scheme:dark}}
+:root[data-theme=dark]{--bg:#10181d;--fg:#e6edf0;--mu:#8fa1ab;--card:#172128;--bd:#263640;--a:#6aa7d1;--b:#e5a04d;--c:#4cc3cf;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.55 "Public Sans",system-ui,sans-serif}
+main{max-width:760px;margin:0 auto;padding:28px 18px 40px}
+h1{font:600 clamp(26px,5vw,36px)/1.15 Newsreader,Georgia,serif;margin:0 0 8px}
+.lead{color:var(--mu);margin:0 0 22px;max-width:62ch}
+#tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+#tabs button{font:inherit;font-size:14px;padding:8px 12px;border:1px solid var(--bd);background:var(--card);color:var(--fg);cursor:pointer;border-radius:3px}
+#tabs button.on{background:var(--c);border-color:var(--c);color:#fff}
+#tabs button:focus-visible,input:focus-visible{outline:2px solid var(--a);outline-offset:2px}
+.panel{background:var(--card);border:1px solid var(--bd);padding:20px;border-radius:3px}
+h2{font:600 22px/1.25 Newsreader,Georgia,serif;margin:0 0 6px}
+#d{color:var(--mu);margin:0 0 16px;max-width:64ch}
+label{display:grid;grid-template-columns:minmax(150px,34%) 1fr 44px;gap:10px;align-items:center;font-size:14px;margin:6px 0}
+label b{text-align:right;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--c)}
+#o{margin:18px 0 8px;min-height:60px}
+.r{display:grid;grid-template-columns:minmax(120px,36%) 1fr 52px;gap:10px;align-items:center;margin:9px 0;font-size:14px}
+.r i{display:block;height:14px;border-radius:2px}
+.r b{text-align:right;font-variant-numeric:tabular-nums}
+.g{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:560px){.g{grid-template-columns:1fr}label{grid-template-columns:1fr 44px}label input{grid-column:1/3}}
+canvas{width:100%;height:150px;border:1px solid var(--bd);display:block}
+figcaption{font-size:13px;color:var(--mu);margin-top:4px}
+figure{margin:0}
+#m{margin:14px 0 0;padding-top:12px;border-top:1px solid var(--bd);max-width:64ch}
+footer{color:var(--mu);font-size:13px;margin-top:18px;max-width:70ch}
+</style></head><body><main>
+<h1>Multimodal disease progression, in five small experiments</h1>
+<p class="lead">Each tab takes one focus area from the PhD project description and shows it on a simulated cohort of 600 patients with imaging, wearable and tabular measurements. Move the sliders; everything recomputes in your browser.</p>
+<div id="tabs"></div>
+<section class="panel"><h2 id="h"></h2><p id="d"></p><div id="sl"></div><div id="o"></div><p id="m"></p></section>
+<footer>All data are synthetic, generated from a latent disease stage per patient. The methods are deliberately simple statistical stand-ins (precision-weighted fusion, pooled slopes, stratification) that expose each problem; they are not clinical results and not the learned models a real study would use.</footer>
+</main>
+<script>
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+function rng(s){return()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const gauss=r=>Math.sqrt(-2*Math.log(r()+1e-12))*Math.cos(6.2832*r());
+const m=a=>a.reduce((s,x)=>s+x,0)/a.length,rm=e=>Math.sqrt(m(e.map(x=>x*x)));
+const cor=(x,y)=>{const mx=m(x),my=m(y);let a=0,b=0,c=0;x.forEach((v,i)=>{a+=(v-mx)*(y[i]-my);b+=(v-mx)**2;c+=(y[i]-my)**2});return a/Math.sqrt(b*c)};
+const S=[.9,.6,1.2],NAME=["Imaging","Wearable","Tabular"];
+const D=(()=>{const r=rng(11),P=[];for(let i=0;i<600;i++)P.push({a:gauss(r)*1.2,g:r()<.4?1:0,z:[gauss(r),gauss(r),gauss(r)],u:r(),e:gauss(r)});return P})();
+function bars(o,it,mx){o.innerHTML=it.map(([l,v,c])=>`<div class="r"><span>${l}</span><i style="width:${Math.max(1,v/mx*100)}%;background:var(--${c})"></i><b>${v.toFixed(2)}</b></div>`).join("")}
+function plot(cv,L,x0,x1,y0,y1){const c=cv.getContext("2d"),W=cv.width=cv.clientWidth*2,H=cv.height=300,X=x=>10+(x-x0)/(x1-x0)*(W-20),Y=y=>H-10-(y-y0)/(y1-y0)*(H-20);L.forEach(([p,col])=>{c.strokeStyle=c.fillStyle=col;c.lineWidth=2;c.beginPath();p.forEach(([x,y],i)=>i?c.lineTo(X(x),Y(y)):c.moveTo(X(x),Y(y)));c.stroke();p.forEach(([x,y])=>{c.beginPath();c.arc(X(x),Y(y),4,0,7);c.fill()})})}
+const pct=x=>(x*100).toFixed(0)+"%";
+const T=[
+{n:"Multimodal fusion",h:"Multimodal representation learning across imaging, time series and tabular data",
+d:"Each modality is a noisy view of the same hidden disease stage. A shared latent estimate that weights each view by its reliability should beat any single view. Make the wearable signal noisier and watch the weights shift.",
+s:[["Wearable noise ×",.5,3,.1,1]],
+f:(v,o)=>{const sg=[S[0],S[1]*v[0],S[2]],ob=sg.map((s,k)=>D.map(p=>p.a+s*p.z[k])),w=sg.map(s=>1/s/s),fu=D.map((p,i)=>ob.reduce((t,x,k)=>t+w[k]*x[i],0)/(w[0]+w[1]+w[2])),A=D.map(p=>p.a),R=x=>cor(x,A)**2,sing=ob.map(R);
+bars(o,[...sing.map((x,k)=>[NAME[k]+" alone",x,"mu"]),["Fused latent stage",R(fu),"c"]],1);
+return `Variance in true stage explained (R², higher is better). Fusion reaches ${pct(R(fu))}; the best single modality reaches ${pct(Math.max(...sing))}.`}},
+{n:"Sparse longitudinal",h:"Disease progression modelling from cross-sectional and sparse longitudinal data",
+d:"Patients are seen at only a few random times, so no one is followed for the whole disease. Left: stage against calendar time looks like noise. Right: a pooled progression rate lets each patient’s visits be shifted onto one shared disease timeline.",
+s:[["Visits per patient",2,6,1,3],["Measurement noise",.2,1.5,.1,.6]],
+f:(v,o)=>{const r=rng(5),k=v[0],sg=v[1],M=600,P=[];let sxy=0,sxx=0;
+for(let i=0;i<M;i++){const a=D[i].a,ri=.6*(1+.35*a),ts=Array.from({length:k},()=>r()*4).sort((x,y)=>x-y),ys=ts.map(t=>a+ri*t+sg*gauss(r)),tb=m(ts),yb=m(ys);ts.forEach((t,j)=>{sxy+=(t-tb)*(ys[j]-yb);sxx+=(t-tb)**2});P.push({ts,ys,ri,a})}
+const sl=Math.max(.05,sxy/sxx);P.forEach(p=>{p.ah=m(p.ys.map((y,j)=>y-sl*p.ts[j]));p.tau=p.ts.map(t=>t+p.ah/sl)});
+o.innerHTML='<div class="g"><figure><canvas></canvas><figcaption>Raw visit time (years)</figcaption></figure><figure><canvas></canvas><figcaption>Aligned disease time</figcaption></figure></div>';
+const [c1,c2]=o.querySelectorAll("canvas"),Q=P.slice(0,30),col=i=>`hsla(${i*47%360},60%,55%,.85)`,all=Q.flatMap(p=>p.tau),ys=Q.flatMap(p=>p.ys),y0=Math.min(...ys),y1=Math.max(...ys);
+plot(c1,Q.map((p,i)=>[p.ts.map((t,j)=>[t,p.ys[j]]),col(i)]),0,4,y0,y1);
+plot(c2,Q.map((p,i)=>[p.tau.map((t,j)=>[t,p.ys[j]]),col(i)]),Math.min(...all),Math.max(...all),y0,y1);
+return `Estimated population rate ${sl.toFixed(2)} per year against a true average of ${m(P.map(p=>p.ri)).toFixed(2)}. Recovered patient offsets correlate ${cor(P.map(p=>p.ah),P.map(p=>p.a)).toFixed(2)} with the truth. Fewer visits or more noise blurs the aligned curve.`}},
+{n:"Causal effect",h:"Causal machine learning to disentangle disease progression from treatment effects",
+d:"Sicker patients are more likely to be treated and also progress faster, so comparing treated with untreated hides the benefit. Here every patient has both potential outcomes, so the true effect is known. Raise the confounding and compare estimates.",
+s:[["Confounding strength",0,3,.25,1.5]],
+f:(v,o)=>{const k=v[0],R=D.map(p=>{const T=p.u<1/(1+Math.exp(-k*p.a)),y0=1.8*(1+.35*p.a),y1=.6*y0;return{T,y:(T?y1:y0)+.3*p.e,d:y1-y0,ah:p.a+.5*p.z[0]}});
+const ate=m(R.map(x=>x.d)),nv=m(R.filter(x=>x.T).map(x=>x.y))-m(R.filter(x=>!x.T).map(x=>x.y)),so=[...R].sort((x,y)=>x.ah-y.ah),B=8,sz=so.length/B;let adj=0,wt=0;
+for(let b=0;b<B;b++){const g=so.slice(Math.floor(b*sz),Math.floor((b+1)*sz)),a=g.filter(x=>x.T),c=g.filter(x=>!x.T);if(a.length&&c.length){adj+=g.length*(m(a.map(x=>x.y))-m(c.map(x=>x.y)));wt+=g.length}}adj/=wt;
+bars(o,[["True reduction",-ate,"c"],["Naive comparison",-nv,"b"],["Stratified on baseline",-adj,"a"]],1.5);
+return `Reduction in three-year progression, in stage units. The naive estimate is ${(-nv).toFixed(2)} against a true ${(-ate).toFixed(2)}; stratifying on baseline severity gives ${(-adj).toFixed(2)}. Some gap remains because baseline severity is itself measured with noise, and it widens as confounding grows.`}},
+{n:"Missing data",h:"Learning with missing modalities and irregularly sampled signals",
+d:"Real patients often lack one or more modalities. Zero-filling and averaging treats a missing scan as a healthy reading. Weighting only what was observed, and falling back to the population prior when nothing was, degrades gracefully. Irregular visit times are handled in the second tab.",
+s:[["Missing rate per modality",0,.8,.05,.3]],
+f:(v,o)=>{const r=rng(3),p=v[0],ws=S.map(s=>1/s/s);let eN=[],eF=[],cc=0;
+D.forEach(q=>{const ob=q.z.map((z,k)=>r()<p?null:q.a+S[k]*z);if(ob.every(x=>x!==null))cc++;const pr=1/1.44+ob.reduce((s,x,k)=>s+(x===null?0:ws[k]),0);eN.push(m(ob.map(x=>x===null?0:x))-q.a);eF.push(ob.reduce((s,x,k)=>s+(x===null?0:ws[k]*x),0)/pr-q.a)});
+bars(o,[["Zero-fill and average",rm(eN),"b"],["Weight observed only",rm(eF),"c"],["Prior only (reference)",1.2,"mu"]],1.5);
+return `Error in estimated stage (RMSE, lower is better). A complete-case model could use only ${pct(cc/D.length)} of patients; the observed-only estimate uses everyone.`}},
+{n:"Fairness",h:"Fairness and bias in multimodal models across demographic subgroups",
+d:"Suppose the wearable sensor is less reliable for a smaller subgroup (B, 40% of patients). A model that assumes equal sensor quality does worse on B than on A. Compare it with weights that reflect each group’s sensor quality.",
+s:[["Wearable noise ×, group B",1,4,.25,2.5]],
+f:(v,o)=>{const wn=v[0],G=[[],[]],H=[[],[]];
+D.forEach(q=>{const sg=[S[0],S[1]*(q.g?wn:1),S[2]],ob=sg.map((s,k)=>q.a+s*q.z[k]),f=s=>ob.reduce((t,x,k)=>t+x/s[k]**2,0)/s.reduce((t,x)=>t+1/x**2,0);G[q.g].push(f(S)-q.a);H[q.g].push(f(sg)-q.a)});
+const g1=rm(G[1])-rm(G[0]),g2=rm(H[1])-rm(H[0]);
+bars(o,[["A, shared weights",rm(G[0]),"a"],["B, shared weights",rm(G[1]),"b"],["A, group-aware",rm(H[0]),"a"],["B, group-aware",rm(H[1]),"b"]],1.2);
+return `Error in estimated stage (RMSE). The gap between groups is ${g1.toFixed(2)} with shared weights and ${g2.toFixed(2)} with group-aware weights. Group-aware weighting narrows the gap but cannot remove it: a noisier sensor still carries less information, and it needs the sensor quality to be known.`}}
+];
+let cur=0;
+$("#tabs").innerHTML=T.map((t,i)=>`<button>${t.n}</button>`).join("");
+$$("#tabs button").forEach((b,i)=>b.onclick=()=>show(i));
+function show(i){cur=i;const t=T[i];$$("#tabs button").forEach((b,j)=>b.classList.toggle("on",j==i));$("#h").textContent=t.h;$("#d").textContent=t.d;
+$("#sl").innerHTML=t.s.map(s=>`<label>${s[0]}<input type="range" min="${s[1]}" max="${s[2]}" step="${s[3]}" value="${s[4]}"><b></b></label>`).join("");
+$$("#sl input").forEach(x=>x.oninput=run);run()}
+function run(){const v=$$("#sl input").map(x=>+x.value);$$("#sl b").forEach((b,j)=>b.textContent=v[j]);$("#m").textContent=T[cur].f(v,$("#o"))}
+addEventListener("resize",run);show(0);
+</script></body></html>
